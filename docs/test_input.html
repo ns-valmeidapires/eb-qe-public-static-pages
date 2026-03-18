@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blink Edit Suppression - Master Test Suite</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; padding: 2rem; background: #f5f5f5; }
+        h1 { color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px; }
+        section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; font-size: 1.2rem; color: #333; border-left: 4px solid #1a73e8; padding-left: 10px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .test-case { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: #555; }
+        textarea, .editable-div {
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+        }
+        .editable-div { min-height: 40px; border: 2px dashed #4CAF50; background: #fff; }
+        .draggable { display: inline-block; padding: 10px; background: #e8f0fe; border: 1px blue dashed; cursor: move; margin-bottom: 10px; }
+        .log { background: #333; color: #0f0; padding: 10px; font-family: monospace; height: 120px; overflow-y: auto; border-radius: 4px; font-size: 0.8rem; }
+        .success { color: #2e7d32; font-weight: bold; }
+        .iframe-test { width: 100%; height: 150px; border: 1px solid #aaa; }
+    </style>
+</head>
+<body>
+
+    <h1>Blink Edit Suppression Test Suite</h1>
+
+    <section>
+        <h2>Text entry, voice dictation, IME (eg: Pinyin), OSK and Drag and Drop</h2>
+        <p>Expectation: Input fields should act as read only if policy is active.</p>
+        <div class="grid">
+            <div class="test-case">
+                <label>Input Fields (try selection/copy/paste):</label>
+                <input type="text" value="text field">
+            </div>
+            <div class="test-case">
+                <label>Textarea:</label>
+                <textarea placeholder="Try text entry or Drag/Drop here"></textarea>
+            </div>
+            <div>
+                <label style="display:block; margin-top:15px;">ContentEditable Div:</label>
+                <div contenteditable="true" style="border: 1px solid">This is a contenteditable div.</div>
+            </div>
+            <div id="contenteditableparent" class="test-case">
+                <label>Dynamically created contenteditable div.</label>
+                <button onclick="creatediv()">Create contenteditable div</button>
+            </div>
+            <div>
+                <label style="display:block; margin-top:15px;">Nested ContentEditable:</label>
+                <div contenteditable="true" style="border: 1px solid; height: 100px; width: 600px">
+                    Root element has contenteditable. Text entry should be suppressed.
+                    <div style="border: 1px solid; height: 50px; width: 550px; margin: 10px">
+                        This is a nested div without the contenteditable attribute but since the parent has it,
+                        this div will inherit it. Text entry should be suppressed.
+                    </div>
+                </div>
+            </div>
+            <div class="test-case">
+                <label>SVG ForeignObject:</label>
+                <svg width="300" height="60">
+                    <foreignObject width="100%" height="100%">
+                        <div xmlns="http://www.w3.org/1999/xhtml" contenteditable="true" style="border:1px solid blue;">
+                            SVG Editable Div
+                        </div>
+                    </foreignObject>
+                </svg>
+            </div>
+            <div class="test-case">
+                <label>Shadow DOM Input:</label>
+                <div id="shadowHost"></div>
+            </div>
+            <div class="test-case">
+                Drag and drop this: <img src="https://www.netskope.com/wp-content/uploads/2024/08/netskope-logo-520x293-on-blue.png" width="100" draggable="true" alt="External Image">
+            </div>
+            <div class="test-case">
+                <label>Canvas Support: Limited (only text suppression)</label>
+                <canvas id="fakeInput" width="300" height="50" style="border:1px solid red; background:#fff;"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Autofill (Address/Credit Card)</h2>
+        <p>Expectation: Autofill UI shouldn't pop up if policy is active.</p>
+        <form action="/nowhere" method="post">
+            <div class="grid">
+                <div class="test-case">
+                    <label>Full Name (Autofill: name):</label>
+                    <input type="text" name="name" autocomplete="name">
+                </div>
+                <div class="test-case">
+                    <label>Street Address (Autofill: street-address):</label>
+                    <input type="text" name="address" autocomplete="street-address">
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section>
+        <h2>Programmatic focus</h2>
+        <p>Expectation: Focus should be allowed. Users should be allowed to move cursor as normal.</p>
+        <div class="control-group">
+            <button onclick="focusElement('inputField')">Focus Input</button>
+            <button onclick="focusElement('textArea')">Focus Textarea</button>
+            <button onclick="focusElement('editableDiv')">Focus Div</button>
+            <button onclick="selectAllText()">Select all on focused element</button>
+        </div><br />
+        <label>Standard Input:</label>
+        <input type="text" id="inputField" value="Focus me programmatically">
+
+        <label style="display:block; margin-top:15px;">Textarea:</label>
+        <textarea id="textArea">Focus me programmatically</textarea>
+
+        <label style="display:block; margin-top:15px;">ContentEditable Div:</label>
+        <div id="editableDiv" contenteditable="true" style="border: 1px solid">This is a contenteditable div.</div>
+    </section>
+
+    <section>
+        <h2>Frame Isolation (In-Proc & OOPIF)</h2>
+        <p>Expectation: No input allowed if policy is active.</p>
+        <div class="grid">
+            <div class="test-case">
+                <label>Same-Origin Iframe (In-Proc):</label>
+                <iframe srcdoc="<html><body><input type='text' value='Inside Iframe'></body></html>" class="iframe-test"></iframe>
+            </div>
+            <div class="test-case">
+                <label>Cross-Origin Iframe (OOPIF Simulation):</label>
+                <iframe src="data:text/html,<html><body><input type='text' value='Data URL Iframe'></body></html>" class="iframe-test"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>Out of scope</h2>
+        <div class="grid">
+            <div class="test-case">
+                <label>Direct value Injection:</label>
+                <button onclick="injectText()">Run JS Injection</button>
+                <input type="text" id="jsTarget" value="Original Value">
+            </div>
+        </div>
+        <div class="field"><label>Date:</label><input type="date"></div><br />
+        <div class="field"><label>Color Picker:</label><input type="color"></div><br />
+        <div class="field"><label>Range/Slider:</label><input type="range" min="0" max="100"></div><br />
+        <div class="field"><label>File Upload:</label><input type="file"></div><br />
+        <div class="field"><label>Checkboxes:</label><span><input type="checkbox"> Select this.</span></div><br />
+        <div class="field"><label>Choose one:</label>
+            <label><input type="radio" name="security-level" value="yes">Yes</label>
+            <label><input type="radio" name="security-level" value="no">No</label>
+        </div>
+        <div class="field" style="margin-top: 15px;"><label>Dropdown:</label>
+            <select name="options">
+                <option value="1">Option One</option>
+                <option value="2">Option Two</option>
+                <option value="3">Option Three</option>
+            </select>
+        </div><br />
+        <div class="field"><label>Time:</label><input type="time"></div><br />
+        <div class="field"><label>Number (clicking on arrows to increment/decrement
+            is not in scope):</label><input type="number"></div><br />
+        <div class="field"><label>DateTime:</label><input type="datetime-local"></div><br />
+        <div class="field"><label>Week:</label><input type="week"></div><br />
+        <div class="field"><label>Month:</label><input type="month"></div><br />
+        <div class="field"><label>Image:</label><input type="image"></div><br />
+    </section>
+
+    <script>
+        function focusElement(id) {
+            const el = document.getElementById(id);
+            el.focus();
+        }
+
+        function selectAllText() {
+            document.execCommand('selectAll', false, null);
+        }
+
+        function injectText() {
+            document.getElementById('jsTarget').value = "INJECTED";
+        }
+
+        const host = document.getElementById('shadowHost');
+        const shadow = host.attachShadow({mode: 'open'});
+        shadow.innerHTML = `<input type="text" value="I'm in a Shadow DOM">`;
+
+        // Canvas Logic
+        const cvs = document.getElementById('fakeInput');
+        const ctx = cvs.getContext('2d');
+        let cvsVal = "> ";
+        ctx.fillText(cvsVal, 10, 30);
+        cvs.tabIndex = 0; // Make it focusable
+        cvs.addEventListener('keydown', e => {
+            if(e.key.length === 1) cvsVal += e.key;
+            ctx.clearRect(0,0,300,50);
+            ctx.fillText(cvsVal, 10, 30);
+        });
+
+        function creatediv() {
+            const newdiv = document.createElement("div");
+            newdiv.contentEditable = "true";
+            newdiv.style.border = "1px solid black";
+            newdiv.innerHTML="Try to edit me";
+            document.getElementById('contenteditableparent').appendChild(newdiv);
+        }
+    </script>
+</body>
+</html>
