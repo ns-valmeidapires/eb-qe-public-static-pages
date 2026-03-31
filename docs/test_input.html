@@ -1,7 +1,6 @@
 <!DOCTYPE html>
-<!-- saved from url=(0045)https://ns-rarakeri.github.io/input_test.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    
+
     <title>Blink Edit Suppression - Master Test Suite</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; padding: 2rem; background: #f5f5f5; }
@@ -12,7 +11,7 @@
         .test-case { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: #555; }
         textarea, .editable-div {
-            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; 
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
         }
         .editable-div { min-height: 40px; border: 2px dashed #4CAF50; background: #fff; }
         .draggable { display: inline-block; padding: 10px; background: #e8f0fe; border: 1px blue dashed; cursor: move; margin-bottom: 10px; }
@@ -32,12 +31,6 @@
             <div class="test-case">
                 <label>Input Fields (try selection/copy/paste):</label>
                 <input type="text" value="text field">
-                <input type="email" value="email field">
-                <input type="hidden" value="hidden field">
-                <input type="password" value="password field">
-                <input type="search" value="search field">
-                <input type="tel" value="tel field">
-                <input type="url" value="url field">
             </div>
             <div class="test-case">
                 <label>Textarea:</label>
@@ -54,10 +47,10 @@
             <div>
                 <label style="display:block; margin-top:15px;">Nested ContentEditable:</label>
                 <div contenteditable="true" style="border: 1px solid; height: 100px; width: 600px">
-                    Element has contenteditable. Text entry should be suppressed.
+                    Root element has contenteditable. Text entry should be suppressed.
                     <div style="border: 1px solid; height: 50px; width: 550px; margin: 10px">
-                        Element doesn't explicitly have contenteditable but inherits it from the parent.
-                        Text extry should be suppressed.
+                        This is a nested div without the contenteditable attribute but since the parent has it,
+                        this div will inherit it. Text entry should be suppressed.
                     </div>
                 </div>
             </div>
@@ -73,10 +66,10 @@
             </div>
             <div class="test-case">
                 <label>Shadow DOM Input:</label>
-                <div id="shadowHost"><template shadowrootmode="open"><input type="text" value="I&#39;m in a Shadow DOM"></template></div>
+                <div id="shadowHost"></div>
             </div>
             <div class="test-case">
-                Drag and drop this: <img src="./Blink Edit Suppression - Master Test Suite_files/netskope-logo-520x293-on-blue.png" width="100" draggable="true" alt="External Image">
+                Drag and drop this: <img src="https://www.netskope.com/wp-content/uploads/2024/08/netskope-logo-520x293-on-blue.png" width="100" draggable="true" alt="External Image">
             </div>
             <div class="test-case">
                 <label>Canvas Support: Limited (only text suppression)</label>
@@ -88,7 +81,7 @@
     <section>
         <h2>Autofill (Address/Credit Card)</h2>
         <p>Expectation: Autofill UI shouldn't pop up if policy is active.</p>
-        <form action="https://ns-rarakeri.github.io/nowhere" method="post">
+        <form action="https://ns-valmeidapires.github.io/nowhere" method="post">
             <div class="grid">
                 <div class="test-case">
                     <label>Full Name (Autofill: name):</label>
@@ -106,9 +99,9 @@
         <h2>Programmatic focus</h2>
         <p>Expectation: Focus should be allowed. Users should be allowed to move cursor as normal.</p>
         <div class="control-group">
-            <button onclick="focusElement(&#39;inputField&#39;)">Focus Input</button>
-            <button onclick="focusElement(&#39;textArea&#39;)">Focus Textarea</button>
-            <button onclick="focusElement(&#39;editableDiv&#39;)">Focus Div</button>
+            <button onclick="focusElement('inputField')">Focus Input</button>
+            <button onclick="focusElement('textArea')">Focus Textarea</button>
+            <button onclick="focusElement('editableDiv')">Focus Div</button>
             <button onclick="selectAllText()">Select all on focused element</button>
         </div><br>
         <label>Standard Input:</label>
@@ -127,11 +120,11 @@
         <div class="grid">
             <div class="test-case">
                 <label>Same-Origin Iframe (In-Proc):</label>
-                <iframe class="iframe-test" src="./Blink Edit Suppression - Master Test Suite_files/saved_resource.html"></iframe>
+                <iframe class="iframe-test" srcdoc="<!DOCTYPE html><html><body style='font-family:sans-serif;padding:10px'><h3>Same-Origin Frame</h3><label>Input:</label><input type='text' placeholder='Type here' style='padding:5px;width:80%'></body></html>"></iframe>
             </div>
             <div class="test-case">
                 <label>Cross-Origin Iframe (OOPIF Simulation):</label>
-                <iframe src="./Blink Edit Suppression - Master Test Suite_files/saved_resource(1).html" class="iframe-test"></iframe>
+                <iframe class="iframe-test" src="data:text/html,<!DOCTYPE html><html><body style='font-family:sans-serif;padding:10px'><h3>Cross-Origin Frame</h3><label>Input:</label><input type='text' placeholder='Type here' style='padding:5px;width:80%25'></body></html>"></iframe>
             </div>
         </div>
     </section>
