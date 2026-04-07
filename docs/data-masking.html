@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Data Masking Test Page</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  .secret { background-color: yellow; }
+  button { padding: 10px; margin: 5px; cursor: pointer; }
+  .container { border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+  h3 { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<h1>Data Masking Test Page</h1>
+
+<div class="container" id="static-phones">
+    <h3>Phone Numbers</h3>
+    <p id="p1">Static match 1: 123-456-7890.</p>
+    <p id="p2">Static match 2: 098-765-4321.</p>
+    <p id="p3">Split Node Match: 444-<span id="hidden_part" style="display: inline;">333</span>-2222.</p>
+    <p id="phone4">International format: +1 (555) 555-0199.</p>
+    <p id="phone5">Spaced format: +1 555 555 0199.</p>
+    <p id="phone6">Local format: 555 555 0199.</p>
+</div>
+
+<div class="container" id="static-cc">
+    <h3>Credit Cards</h3>
+    <p id="cc1">Visa: 4111 1111 1111 1111.</p>
+    <p id="cc2">Mastercard: 5500 0000 0000 0004.</p>
+</div>
+
+<div class="container" id="static-ssn">
+    <h3>Social Security Numbers</h3>
+    <p id="ssn1">SSN example 1: 123-45-6789.</p>
+    <p id="ssn2">SSN example 2: 987-65-4321.</p>
+</div>
+
+<div class="container" id="static-addr">
+    <h3>US Addresses</h3>
+    <p id="addr1">742 Evergreen Terrace, Springfield, IL 62704</p>
+    <p id="addr2">1 Infinite Loop, Cupertino, CA 95014</p>
+    <p id="addr3">350 5th Ave, New York, NY 10118-0110</p>
+</div>
+
+<div class="container" id="fouc-section">
+    <h3>FOUC Test (Bright Red Sensitive Data)</h3>
+    <p id="fouc_test" style="color: #FF0000; background: #FFFF00; font-size: 2em; padding: 10px;">
+        SENSITIVE: 4111 1111 1111 1111
+    </p>
+</div>
+
+<div class="container" id="split-node-section">
+    <h3>Cross-Inline Tag Patterns</h3>
+    <p id="split_phone">Cross-inline phone: <span id="s1">555</span>-<span id="s2">555</span>-<span id="s3">0199</span>.</p>
+</div>
+
+<div class="container" id="container">
+    <h3>Dynamic Actions</h3>
+    <p>Click the buttons below to trigger DOM mutations.</p>
+
+    <button onclick="alterContentNewMatch()">1. Modify Text (Inject Secret)</button>
+    <button onclick="alterContentRemoveMatch()">2. Modify Text (Remove Secret)</button>
+    <button onclick="addNode()">3. Add New Node</button>
+    <button onclick="removeNode()">4. Remove Node</button>
+    <button onclick="toggleDisplayNone()">5. Toggle Visibility (Split)</button>
+    <button onclick="injectSensitiveContent()">6. Inject Sensitive Data (SPA Simulation)</button>
+</div>
+
+<script>
+function alterContentNewMatch() {
+  var p = document.getElementById('p1');
+  p.textContent = 'UPDATED: This paragraph now has a NEW secret: 555-555-5555.';
+}
+
+function alterContentRemoveMatch() {
+  var p = document.getElementById('p2');
+  p.textContent = 'CLEARED: The secret in this paragraph has been removed.';
+}
+
+function addNode() {
+  var container = document.getElementById('container');
+  var newNode = document.createElement('p');
+  newNode.id = 'added_node';
+  newNode.textContent = 'NEW NODE: Loaded via JS with secret: 111-222-3333.';
+  container.appendChild(newNode);
+}
+
+function removeNode() {
+  var nodeToRemove = document.getElementById('added_node');
+  if (nodeToRemove) {
+    nodeToRemove.parentNode.removeChild(nodeToRemove);
+  } else {
+    alert("Add the node first!");
+  }
+}
+
+function toggleDisplayNone() {
+  var span = document.getElementById('hidden_part');
+  span.style.display = (span.style.display === 'none') ? 'inline' : 'none';
+}
+
+function injectSensitiveContent() {
+  var container = document.getElementById('container');
+  var existing = document.getElementById('spa_injected');
+  if (existing) return;
+  var p = document.createElement('p');
+  p.id = 'spa_injected';
+  p.textContent = 'SPA Loaded: CC 4111 1111 1111 1111, SSN 123-45-6789, Phone +1 (555) 555-0199.';
+  container.appendChild(p);
+}
+</script>
+
+</body>
+</html>
