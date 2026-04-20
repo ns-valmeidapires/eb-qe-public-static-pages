@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File Download Control Host</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh;
+      color: #e0e0e0;
+      padding: 40px 20px;
+    }
+
+    .container { max-width: 1300px; margin: 0 auto; }
+
+    header { text-align: center; margin-bottom: 40px; }
+
+    header h1 {
+      font-size: 2.6rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 1px;
+    }
+
+    header p { margin-top: 10px; color: #94a3b8; font-size: 1rem; }
+
+    .badge-bar {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 8px; margin-top: 18px;
+    }
+
+    .badge-bar span {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px; padding: 4px 14px;
+      font-size: 0.78rem; color: #cbd5e1; letter-spacing: 0.5px;
+    }
+
+    .info-box {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 16px 22px;
+      margin-bottom: 30px; font-size: 0.88rem;
+      color: #94a3b8; line-height: 1.7;
+    }
+
+    .info-box strong { color: #a78bfa; }
+    .info-box code {
+      background: rgba(0,0,0,0.3); color: #34d399;
+      padding: 1px 5px; border-radius: 3px; font-size: 0.85em;
+    }
+
+    .table-wrapper {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead tr {
+      background: linear-gradient(90deg, rgba(167,139,250,0.2), rgba(96,165,250,0.2));
+    }
+
+    thead th {
+      padding: 16px 14px; text-align: left;
+      font-size: 0.78rem; text-transform: uppercase;
+      letter-spacing: 1.2px; color: #a78bfa;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      transition: background 0.2s;
+    }
+
+    tbody tr:hover { background: rgba(255,255,255,0.05); }
+    tbody tr:last-child { border-bottom: none; }
+
+    td { padding: 14px 14px; vertical-align: middle; }
+
+    .td-num { width: 40px; color: #64748b; font-size: 0.85rem; text-align: center; }
+    .td-icon { width: 44px; font-size: 1.4rem; text-align: center; }
+    .td-label { min-width: 200px; }
+
+    .file-label {
+      display: block; font-weight: 600;
+      font-size: 0.95rem; color: #e2e8f0;
+    }
+
+    .file-badge {
+      display: inline-block; margin-top: 4px;
+      background: rgba(167,139,250,0.2); color: #a78bfa;
+      border: 1px solid rgba(167,139,250,0.4);
+      border-radius: 4px; padding: 1px 7px;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 1px;
+    }
+
+    .td-desc { color: #94a3b8; font-size: 0.85rem; min-width: 260px; }
+
+    .td-mime code {
+      background: rgba(0,0,0,0.3); color: #34d399;
+      padding: 3px 8px; border-radius: 4px;
+      font-size: 0.75rem; white-space: nowrap;
+    }
+
+    .td-btn { min-width: 160px; text-align: center; }
+
+    .download-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; text-decoration: none; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600; letter-spacing: 0.3px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(79,70,229,0.4);
+      white-space: nowrap; cursor: pointer;
+    }
+
+    .download-btn:hover {
+      background: linear-gradient(135deg, #6d28d9, #4338ca);
+      box-shadow: 0 4px 16px rgba(79,70,229,0.6);
+      transform: translateY(-1px); color: #fff;
+    }
+
+    .download-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 6px rgba(79,70,229,0.3);
+    }
+
+    .selector-section {
+      margin-top: 40px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 28px;
+    }
+
+    .selector-section h2 {
+      font-size: 1.2rem; color: #a78bfa;
+      margin-bottom: 20px; font-weight: 700;
+    }
+
+    .selector-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 12px;
+    }
+
+    .selector-card {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; padding: 14px 16px;
+    }
+
+    .sc-label {
+      font-size: 0.72rem; color: #64748b;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
+    }
+
+    .sc-file {
+      font-size: 0.82rem; font-weight: 600;
+      color: #60a5fa; margin-bottom: 10px;
+    }
+
+    .selector-row {
+      display: flex; align-items: flex-start;
+      gap: 8px; margin-bottom: 6px;
+    }
+
+    .sel-type {
+      flex-shrink: 0; font-size: 0.65rem; font-weight: 700;
+      padding: 3px 6px; border-radius: 4px; text-align: center;
+      margin-top: 2px; min-width: 52px;
+    }
+
+    .sel-xpath { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
+    .sel-css   { background: rgba(96,165,250,0.15);  color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
+    .sel-text  { background: rgba(251,191,36,0.15);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+
+    .selector-row code {
+      font-size: 0.74rem; color: #cbd5e1;
+      background: rgba(0,0,0,0.3); padding: 3px 8px;
+      border-radius: 4px; word-break: break-all; flex: 1;
+      line-height: 1.5;
+    }
+
+    footer {
+      text-align: center; margin-top: 40px;
+      color: #475569; font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>File Download Control Host</h1>
+    <p>All files are embedded &amp; generated client-side — no external server required</p>
+    <div class="badge-bar">
+      <span>TXT</span><span>CSV</span><span>JSON</span><span>XML</span>
+      <span>PNG</span><span>JPG</span><span>ZIP</span><span>MP3</span>
+      <span>MP4</span><span>DOC</span><span>XLS</span><span>PPT</span>
+    </div>
+  </header>
+
+  <div class="info-box">
+    <strong>About this page:</strong> Each file below is fully generated inside this HTML page using JavaScript
+    and served as a <code>data:</code> URI or <code>Blob</code> URL. Clicking a download button triggers a
+    browser-native file download with no network request. All download buttons have unique
+    <strong>id</strong>, <strong>XPath</strong>, and <strong>CSS</strong> selectors for use in automated
+    test frameworks (Selenium, Playwright, Cypress, etc.).
+  </div>
+
+  <div class="table-wrapper">
+    <table id="download-table" aria-label="File Download Controls">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th></th>
+          <th>File</th>
+          <th>Description</th>
+          <th>MIME Type</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="download-table-body">
+        <!-- rows injected by JS -->
+      </tbody>
+    </table>
+  </div>
+
+  <div class="selector-section" id="selector-reference">
+    <h2>&#128269; XPath &amp; CSS Selector Reference</h2>
+    <div class="selector-grid" id="selector-grid">
+      <!-- cards injected by JS -->
+    </div>
+  </div>
+
+  <footer>
+    <p>File Download Control Host &mdash; 12 embedded file formats &mdash; All files self-contained</p>
+  </footer>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// Utility: convert Uint8Array → base64 string
+// ─────────────────────────────────────────────
+function uint8ToBase64(bytes) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+// Utility: encode UTF-8 string → base64
+function strToBase64(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+// ─────────────────────────────────────────────
+// CRC-32 table for ZIP / PNG
+// ─────────────────────────────────────────────
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c;
+  }
+  return t;
+})();
+
+function crc32(buf, offset = 0, length = buf.length) {
+  let crc = 0xFFFFFFFF;
+  for (let i = offset; i < offset + length; i++) crc = CRC_TABLE[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+// ─────────────────────────────────────────────
+// Write helpers
+// ─────────────────────────────────────────────
+function writeUint16LE(arr, offset, val) {
+  arr[offset]   =  val & 0xFF;
+  arr[offset+1] = (val >>> 8) & 0xFF;
+}
+function writeUint32LE(arr, offset, val) {
+  arr[offset]   =  val & 0xFF;
+  arr[offset+1] = (val >>> 8)  & 0xFF;
+  arr[offset+2] = (val >>> 16) & 0xFF;
+  arr[offset+3] = (val >>> 24) & 0xFF;
+}
+function writeUint32BE(arr, offset, val) {
+  arr[offset]   = (val >>> 24) & 0xFF;
+  arr[offset+1] = (val >>> 16) & 0xFF;
+  arr[offset+2] = (val >>> 8)  & 0xFF;
+  arr[offset+3] =  val & 0xFF;
+}
+
+// ─────────────────────────────────────────────
+// FILE GENERATORS
+// ─────────────────────────────────────────────
+
+function makeTXT() {
+  const content = `This is a sample text file.
+Line 2: Hello, World!
+Line 3: File Download Control Test.
+Line 4: Sample data for testing purposes.
+Line 5: Created for QA automation testing.
+Line 6: Format: Plain Text (.txt)
+Line 7: Date: 2026-04-19
+Line 8: End of file.`;
+  return strToBase64(content);
+}
+
+function makeCSV() {
+  const content = `id,name,age,email,country,department,salary
+1,Alice Johnson,30,alice@example.com,USA,Engineering,85000
+2,Bob Smith,25,bob@example.com,UK,Marketing,65000
+3,Carol White,35,carol@example.com,Canada,Finance,90000
+4,Dave Brown,28,dave@example.com,Australia,HR,70000
+5,Eve Davis,22,eve@example.com,Germany,Engineering,75000
+6,Frank Miller,40,frank@example.com,France,Sales,80000
+7,Grace Lee,33,grace@example.com,Japan,Engineering,95000
+8,Hank Wilson,27,hank@example.com,Brazil,Marketing,60000
+9,Iris Moore,31,iris@example.com,India,Finance,72000
+10,Jack Taylor,45,jack@example.com,Mexico,HR,68000`;
+  return strToBase64(content);
+}
+
+function makeJSON() {
+  const obj = {
+    title: "Sample JSON File",
+    description: "File download control test",
+    version: "1.0",
+    created: "2026-04-19",
+    items: [
+      { id: 1, name: "Item One",   category: "A", value: 100, active: true  },
+      { id: 2, name: "Item Two",   category: "B", value: 200, active: false },
+      { id: 3, name: "Item Three", category: "A", value: 300, active: true  },
+      { id: 4, name: "Item Four",  category: "C", value: 400, active: true  }
+    ],
+    meta: { total: 4, page: 1, pageSize: 10 }
+  };
+  return strToBase64(JSON.stringify(obj, null, 2));
+}
+
+function makeXML() {
+  const content = `<?xml version="1.0" encoding="UTF-8"?>
+<catalog>
+  <book id="1">
+    <title>Sample Book One</title>
+    <author>John Doe</author>
+    <genre>Fiction</genre>
+    <price currency="USD">9.99</price>
+    <year>2024</year>
+  </book>
+  <book id="2">
+    <title>Sample Book Two</title>
+    <author>Jane Smith</author>
+    <genre>Non-Fiction</genre>
+    <price currency="USD">14.99</price>
+    <year>2025</year>
+  </book>
+  <book id="3">
+    <title>Sample Book Three</title>
+    <author>Bob Johnson</author>
+    <genre>Science</genre>
+    <price currency="USD">19.99</price>
+    <year>2026</year>
+  </book>
+</catalog>`;
+  return strToBase64(content);
+}
+
+function makeDOC() {
+  const rtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033
+{\\fonttbl{\\f0\\froman\\fcharset0 Times New Roman;}{\\f1\\fswiss\\fcharset0 Arial;}}
+{\\colortbl;\\red0\\green0\\blue0;\\red0\\green70\\blue127;}
+\\viewkind4\\uc1\\pard\\f1\\fs32\\b\\cf2 File Download Control Test - DOC Sample\\cf1\\b0\\par
+\\fs24\\par
+\\b\\fs26 Section 1: Introduction\\b0\\fs24\\par
+This is a sample DOC file created for testing file download controls in automated test frameworks.\\par
+\\par
+\\b\\fs26 Section 2: Sample Data\\b0\\fs24\\par
+Name: John Doe\\par
+Age: 35\\par
+Email: john.doe@example.com\\par
+Department: Engineering\\par
+Status: Active\\par
+\\par
+\\b\\fs26 Section 3: Summary\\b0\\fs24\\par
+This document was auto-generated for QA testing purposes.\\par
+Date Created: 2026-04-19\\par
+Format: RTF-based DOC\\par
+}}`;
+  return strToBase64(rtf);
+}
+
+function makeXLS() {
+  const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Worksheet ss:Name="SampleData">
+  <Table>
+   <Row>
+    <Cell><Data ss:Type="String">ID</Data></Cell>
+    <Cell><Data ss:Type="String">Name</Data></Cell>
+    <Cell><Data ss:Type="String">Age</Data></Cell>
+    <Cell><Data ss:Type="String">Department</Data></Cell>
+    <Cell><Data ss:Type="String">Salary</Data></Cell>
+   </Row>
+   <Row><Cell><Data ss:Type="Number">1</Data></Cell><Cell><Data ss:Type="String">Alice Johnson</Data></Cell><Cell><Data ss:Type="Number">30</Data></Cell><Cell><Data ss:Type="String">Engineering</Data></Cell><Cell><Data ss:Type="Number">85000</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="Number">2</Data></Cell><Cell><Data ss:Type="String">Bob Smith</Data></Cell><Cell><Data ss:Type="Number">25</Data></Cell><Cell><Data ss:Type="String">Marketing</Data></Cell><Cell><Data ss:Type="Number">65000</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="Number">3</Data></Cell><Cell><Data ss:Type="String">Carol White</Data></Cell><Cell><Data ss:Type="Number">35</Data></Cell><Cell><Data ss:Type="String">Finance</Data></Cell><Cell><Data ss:Type="Number">90000</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="Number">4</Data></Cell><Cell><Data ss:Type="String">Dave Brown</Data></Cell><Cell><Data ss:Type="Number">28</Data></Cell><Cell><Data ss:Type="String">HR</Data></Cell><Cell><Data ss:Type="Number">70000</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="Number">5</Data></Cell><Cell><Data ss:Type="String">Eve Davis</Data></Cell><Cell><Data ss:Type="Number">42</Data></Cell><Cell><Data ss:Type="String">Engineering</Data></Cell><Cell><Data ss:Type="Number">95000</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+</Workbook>`;
+  return strToBase64(xml);
+}
+
+function makePPT() {
+  const rtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033
+{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}}
+{\\colortbl;\\red0\\green0\\blue0;\\red0\\green70\\blue127;}
+\\viewkind4\\uc1
+\\pard\\f0\\fs40\\b\\cf2 Slide 1: File Download Control Test\\cf1\\b0\\par
+\\fs24\\par
+This is a sample PPT file created for testing file download controls.\\par
+\\par
+\\fs36\\b\\cf2 Slide 2: Key Features\\cf1\\b0\\fs24\\par
+- Multiple file format support\\par
+- Embedded files in HTML\\par
+- Download buttons with XPath and CSS selectors\\par
+\\par
+\\fs36\\b\\cf2 Slide 3: Test Data\\cf1\\b0\\fs24\\par
+Project: File Download Control Host\\par
+Created: 2026-04-19\\par
+Author: QA Automation Team\\par
+Status: Ready for Testing\\par
+}}`;
+  return strToBase64(rtf);
+}
+
+// PNG — draw a 200x200 gradient on a canvas
+function makePNG() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 200; canvas.height = 200;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 200, 200);
+  grad.addColorStop(0,   '#7c3aed');
+  grad.addColorStop(0.5, '#4f46e5');
+  grad.addColorStop(1,   '#06b6d4');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 200, 200);
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Sample PNG', 100, 105);
+  // return just the base64 part (strip data:image/png;base64,)
+  return canvas.toDataURL('image/png').split(',')[1];
+}
+
+// JPG — draw a 200x200 image on canvas
+function makeJPG() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 200; canvas.height = 200;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 200, 200);
+  grad.addColorStop(0,   '#f59e0b');
+  grad.addColorStop(0.5, '#ef4444');
+  grad.addColorStop(1,   '#ec4899');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 200, 200);
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Sample JPG', 100, 105);
+  return canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+}
+
+// ZIP — minimal ZIP binary with two text files
+function makeZIP() {
+  function encodeStr(s) {
+    return new TextEncoder().encode(s);
+  }
+
+  const files = [
+    { name: 'readme.txt',      data: encodeStr('This is a sample ZIP archive.\nCreated for file download control testing.\nDate: 2026-04-19\n') },
+    { name: 'data/sample.csv', data: encodeStr('name,value,category\nfoo,1,A\nbar,2,B\nbaz,3,A\nqux,4,C\n') },
+    { name: 'data/notes.txt',  data: encodeStr('Notes:\n- This ZIP contains sample data files\n- For testing purposes only\n') },
+  ];
+
+  const localHeaders = [];
+  let offset = 0;
+
+  const localParts = files.map(f => {
+    const nameBytes = encodeStr(f.name);
+    const dataCRC   = crc32(f.data);
+    const header    = new Uint8Array(30 + nameBytes.length);
+    // Local file header signature
+    header[0]=0x50; header[1]=0x4B; header[2]=0x03; header[3]=0x04;
+    writeUint16LE(header,  4, 20);         // version needed
+    writeUint16LE(header,  6, 0);          // flags
+    writeUint16LE(header,  8, 0);          // compression: stored
+    writeUint16LE(header, 10, 0);          // mod time
+    writeUint16LE(header, 12, 0);          // mod date
+    writeUint32LE(header, 14, dataCRC);    // crc-32
+    writeUint32LE(header, 18, f.data.length); // compressed size
+    writeUint32LE(header, 22, f.data.length); // uncompressed size
+    writeUint16LE(header, 26, nameBytes.length);
+    writeUint16LE(header, 28, 0);          // extra length
+    header.set(nameBytes, 30);
+
+    localHeaders.push({ nameBytes, dataCRC, size: f.data.length, offset });
+    offset += header.length + f.data.length;
+    return [header, f.data];
+  });
+
+  // Central directory
+  const centralParts = files.map((f, i) => {
+    const { nameBytes, dataCRC, size, offset: loff } = localHeaders[i];
+    const cd = new Uint8Array(46 + nameBytes.length);
+    cd[0]=0x50; cd[1]=0x4B; cd[2]=0x01; cd[3]=0x02;
+    writeUint16LE(cd,  4, 20);  // version made by
+    writeUint16LE(cd,  6, 20);  // version needed
+    writeUint16LE(cd,  8, 0);   // flags
+    writeUint16LE(cd, 10, 0);   // compression
+    writeUint16LE(cd, 12, 0);   // mod time
+    writeUint16LE(cd, 14, 0);   // mod date
+    writeUint32LE(cd, 16, dataCRC);
+    writeUint32LE(cd, 20, size);
+    writeUint32LE(cd, 24, size);
+    writeUint16LE(cd, 28, nameBytes.length);
+    writeUint16LE(cd, 30, 0); writeUint16LE(cd, 32, 0); writeUint16LE(cd, 34, 0);
+    writeUint16LE(cd, 36, 0); writeUint32LE(cd, 38, 0); writeUint32LE(cd, 42, loff);
+    cd.set(nameBytes, 46);
+    return cd;
+  });
+
+  const cdSize   = centralParts.reduce((s, p) => s + p.length, 0);
+  const cdOffset = offset;
+
+  const eocd = new Uint8Array(22);
+  eocd[0]=0x50; eocd[1]=0x4B; eocd[2]=0x05; eocd[3]=0x06;
+  writeUint16LE(eocd,  4, 0);
+  writeUint16LE(eocd,  6, 0);
+  writeUint16LE(eocd,  8, files.length);
+  writeUint16LE(eocd, 10, files.length);
+  writeUint32LE(eocd, 12, cdSize);
+  writeUint32LE(eocd, 16, cdOffset);
+  writeUint16LE(eocd, 20, 0);
+
+  // Concatenate all parts
+  const allParts = [...localParts.flat(), ...centralParts, eocd];
+  const totalLen = allParts.reduce((s, p) => s + p.length, 0);
+  const result   = new Uint8Array(totalLen);
+  let pos = 0;
+  for (const p of allParts) { result.set(p, pos); pos += p.length; }
+  return uint8ToBase64(result);
+}
+
+// MP3 — ID3v2 header + 5 silent MPEG1 Layer3 frames
+function makeMP3() {
+  // ID3v2.3 header (10 bytes, size=0)
+  const id3 = [0x49,0x44,0x33,0x03,0x00,0x00,0x00,0x00,0x00,0x00];
+  // Silent MPEG1 Layer3 128kbps 44100Hz stereo frame header + 413 zero bytes
+  const frameHeader = [0xFF,0xFB,0x90,0x00];
+  const frameSize = 417; // 4 header + 413 data
+  const numFrames = 5;
+  const total = 10 + frameSize * numFrames;
+  const buf = new Uint8Array(total);
+  buf.set(id3, 0);
+  for (let i = 0; i < numFrames; i++) {
+    buf.set(frameHeader, 10 + i * frameSize);
+    // rest is zero = silent
+  }
+  return uint8ToBase64(buf);
+}
+
+// MP4 — minimal valid ftyp + mdat + moov container
+function makeMP4() {
+  function box(nameStr, data) {
+    const name = nameStr.split('').map(c => c.charCodeAt(0));
+    const size = 8 + (data ? data.length : 0);
+    const buf  = new Uint8Array(size);
+    writeUint32BE(buf, 0, size);
+    buf.set(name, 4);
+    if (data) buf.set(data, 8);
+    return buf;
+  }
+
+  // ftyp
+  const ftypData = new Uint8Array([
+    0x6D,0x70,0x34,0x32,  // major brand: mp42
+    0x00,0x00,0x00,0x00,  // minor version
+    0x6D,0x70,0x34,0x32,  // compat: mp42
+    0x6D,0x70,0x34,0x31,  // compat: mp41
+    0x69,0x73,0x6F,0x6D   // compat: isom
+  ]);
+  const ftyp = box('ftyp', ftypData);
+
+  // mdat
+  const mdat = box('mdat', new Uint8Array(32));
+
+  // mvhd (minimal, version 0 = 108 bytes total including box header)
+  const mvhdData = new Uint8Array(100);
+  // version=0, flags=0, creation=0, modification=0
+  writeUint32BE(mvhdData, 8,  1000); // timescale
+  writeUint32BE(mvhdData, 12, 0);    // duration
+  mvhdData[16] = 0x00; mvhdData[17] = 0x01; // rate hi = 1.0
+  mvhdData[20] = 0x01; // volume hi = 1.0
+  // matrix (identity) at offset 36
+  mvhdData[36] = 0x00; mvhdData[37] = 0x01; // 0x00010000
+  mvhdData[52] = 0x00; mvhdData[53] = 0x01; // 0x00010000
+  mvhdData[68] = 0x40;                       // 0x40000000
+  const mvhd = box('mvhd', mvhdData);
+  const moov = box('moov', mvhd);
+
+  const total = ftyp.length + mdat.length + moov.length;
+  const result = new Uint8Array(total);
+  result.set(ftyp, 0);
+  result.set(mdat, ftyp.length);
+  result.set(moov, ftyp.length + mdat.length);
+  return uint8ToBase64(result);
+}
+
+// ─────────────────────────────────────────────
+// FILE MANIFEST
+// ─────────────────────────────────────────────
+const FILE_DEFS = [
+  { key:'txt',  label:'Sample Text File',        icon:'📄', mime:'text/plain',                        filename:'example.txt',  makeFn: makeTXT  },
+  { key:'csv',  label:'Sample CSV File',          icon:'📊', mime:'text/csv',                          filename:'example.csv',  makeFn: makeCSV  },
+  { key:'json', label:'Sample JSON File',         icon:'🔧', mime:'application/json',                  filename:'example.json', makeFn: makeJSON },
+  { key:'xml',  label:'Sample XML File',          icon:'📋', mime:'application/xml',                   filename:'example.xml',  makeFn: makeXML  },
+  { key:'png',  label:'Sample PNG Image',         icon:'🖼️', mime:'image/png',                         filename:'example.png',  makeFn: makePNG  },
+  { key:'jpg',  label:'Sample JPG Image',         icon:'📷', mime:'image/jpeg',                        filename:'example.jpg',  makeFn: makeJPG  },
+  { key:'zip',  label:'Sample ZIP Archive',       icon:'🗜️', mime:'application/zip',                   filename:'example.zip',  makeFn: makeZIP  },
+  { key:'mp3',  label:'Sample MP3 Audio',         icon:'🎵', mime:'audio/mpeg',                        filename:'example.mp3',  makeFn: makeMP3  },
+  { key:'mp4',  label:'Sample MP4 Video',         icon:'🎬', mime:'video/mp4',                         filename:'example.mp4',  makeFn: makeMP4  },
+  { key:'doc',  label:'Sample DOC Document',      icon:'📝', mime:'application/msword',                filename:'example.doc',  makeFn: makeDOC  },
+  { key:'xls',  label:'Sample XLS Spreadsheet',   icon:'📈', mime:'application/vnd.ms-excel',          filename:'example.xls',  makeFn: makeXLS  },
+  { key:'ppt',  label:'Sample PPT Presentation',  icon:'📑', mime:'application/vnd.ms-powerpoint',     filename:'example.ppt',  makeFn: makePPT  },
+];
+
+// ─────────────────────────────────────────────
+// BUILD TABLE ROWS
+// ─────────────────────────────────────────────
+const tbody = document.getElementById('download-table-body');
+const sgrid = document.getElementById('selector-grid');
+
+FILE_DEFS.forEach((f, idx) => {
+  const b64 = f.makeFn();
+  const dataUri = `data:${f.mime};base64,${b64}`;
+
+  // Table row
+  const tr = document.createElement('tr');
+  tr.id = `row-${f.key}`;
+  tr.setAttribute('data-file-type', f.key);
+  tr.innerHTML = `
+    <td class="td-num">${idx + 1}</td>
+    <td class="td-icon">${f.icon}</td>
+    <td class="td-label">
+      <span class="file-label" id="label-${f.key}">${f.label}</span>
+      <span class="file-badge">${f.key.toUpperCase()}</span>
+    </td>
+    <td class="td-desc">
+      <span id="desc-${f.key}" class="file-desc">Test file download controls &mdash; ${f.key.toUpperCase()} format sample embedded as base64</span>
+    </td>
+    <td class="td-mime"><code id="mime-${f.key}">${f.mime}</code></td>
+    <td class="td-btn">
+      <a
+        id="download-${f.key}"
+        class="download-btn"
+        href="${dataUri}"
+        download="${f.filename}"
+        role="button"
+        aria-label="Download ${f.label}"
+        data-filename="${f.filename}"
+        data-filetype="${f.key}"
+        data-mime="${f.mime}"
+      >&#11015; Download ${f.key.toUpperCase()}</a>
+    </td>`;
+  tbody.appendChild(tr);
+
+  // Selector card
+  const card = document.createElement('div');
+  card.className = 'selector-card';
+  card.id = `selcard-${f.key}`;
+  card.innerHTML = `
+    <div class="sc-label">Selectors</div>
+    <div class="sc-file">${f.icon} ${f.key.toUpperCase()} &mdash; ${f.filename}</div>
+    <div class="selector-row">
+      <span class="sel-type sel-xpath">XPath</span>
+      <code id="xpath-${f.key}">//*[@id='download-${f.key}']</code>
+    </div>
+    <div class="selector-row">
+      <span class="sel-type sel-css">CSS</span>
+      <code id="css-${f.key}">#download-${f.key}</code>
+    </div>
+    <div class="selector-row">
+      <span class="sel-type sel-text">Text</span>
+      <code id="bytext-${f.key}">//a[contains(text(),'Download ${f.key.toUpperCase()}')]</code>
+    </div>
+    <div class="selector-row">
+      <span class="sel-type sel-xpath" style="min-width:52px;font-size:0.6rem;">Class</span>
+      <code>//a[@class='download-btn' and @data-filetype='${f.key}']</code>
+    </div>`;
+  sgrid.appendChild(card);
+});
+</script>
+</body>
+</html>
