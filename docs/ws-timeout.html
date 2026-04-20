@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head><title>WS Timeout Test</title></head>
+<body>
+<h2>WebSocket Timeout Test</h2>
+<div>Target: <code id="target"></code></div>
+<div>Elapsed: <span id="elapsed">0</span>s</div>
+<div>Status: <strong id="status">idle</strong></div>
+<div>Events:</div>
+<pre id="log" style="background:#f0f0f0;padding:10px;max-height:400px;overflow:auto;"></pre>
+<button onclick="start()">Start Test</button>
+<button onclick="stop()">Force Close</button>
+
+<script>
+const TARGET = "wss://ws-test-server-xyz.onrender.com/delay";
+document.getElementById('target').innerText = TARGET;
+
+let ws, startTime, timerInterval;
+
+function log(msg) {
+  const el = document.getElementById('log');
+  const t = ((Date.now() - startTime) / 1000).toFixed(2);
+  el.innerText += `[+${t}s] ${msg}\n`;
+  console.log(`[+${t}s] ${msg}`);
+}
+
+function start() {
+  startTime = Date.now();
+  document.getElementById('log').innerText = '';
+  document.getElementById('status').innerText = 'CONNECTING';
+
+  timerInterval = setInterval(() => {
+    document.getElementById('elapsed').innerText =
+      ((Date.now() - startTime) / 1000).toFixed(0);
+  }, 500);
+
+  ws = new WebSocket(TARGET);
+
+  ws.onopen = () => {
+    document.getElementById('status').innerText = 'OPEN (handshake succeeded)';
+    log('onopen fired');
+  };
+  ws.onerror = (e) => {
+    document.getElementById('status').innerText = 'ERROR';
+    log(`onerror fired`);
+  };
+  ws.onclose = (e) => {
+    document.getElementById('status').innerText =
+      `CLOSED code=${e.code} wasClean=${e.wasClean}`;
+    log(`onclose code=${e.code} reason="${e.reason}" wasClean=${e.wasClean}`);
+    clearInterval(timerInterval);
+  };
+  ws.onmessage = (e) => log(`message: ${e.data}`);
+}
+
+function stop() {
+  if (ws) ws.close();
+}
+</script>
+</body>
+</html>
