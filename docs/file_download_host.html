@@ -313,11 +313,9 @@
   <div class="links-section" id="direct-links-section">
     <h2>&#128279; Direct Download Links</h2>
     <p class="base-url-note">
-      Files base path: <code id="base-url-display"></code> &mdash;
-      Links are shown as <code>sample.txt</code>, <code>sample.doc</code> etc. and resolve to
-      <code>&#60;base&#62;/files/sample.txt</code> on the host.
-      Right-click any link and choose <em>Copy Link Address</em> to get the full hosted URL.
-      Clicking downloads the file via an embedded Blob.
+      Origin: <code id="base-url-display"></code> &mdash;
+      Links resolve to <code>http://&lt;host&gt;/filedownloads/sample.txt</code>, <code>http://&lt;host&gt;/filedownloads/sample.mp4</code> etc.
+      Right-click any link → <em>Copy Link Address</em> gives the exact hosted URL.
     </p>
     <div class="links-grid" id="links-grid">
       <!-- rows injected by JS -->
@@ -332,16 +330,27 @@
 
 <script>
 // ─────────────────────────────────────────────
-// BASE URL — derived from the actual page location at runtime.
-// If the page is at http://192.168.1.10/eb-qe-public-static-pages/file_download_host.html
-// then BASE_URL becomes http://192.168.1.10/eb-qe-public-static-pages/files
-// Direct links will be: BASE_URL/sample.txt, BASE_URL/sample.doc, etc.
-// Right-clicking any direct link and copying it gives the real hosted URL.
+// BASE URL — uses the page's origin so links are always:
+//   https://ns-valmeidapires.github.io/sample.txt
+//   https://ns-valmeidapires.github.io/sample.csv  etc.
+// No blob URLs, no hardcoding. Right-click → Copy Link gives the real URL.
 // ─────────────────────────────────────────────
-const BASE_URL = window.location.href.replace(/\/[^\/]*$/, '') + '/files';
+const BASE_URL = (window.location.protocol === 'file:' || window.location.origin === 'null')
+  ? 'http://localhost'
+  : window.location.origin;
 
 // Show base URL in the reference section
 document.getElementById('base-url-display').textContent = BASE_URL;
+
+// Warn if not served via HTTP
+if (window.location.protocol === 'file:' || window.location.origin === 'null') {
+  const warn = document.createElement('div');
+  warn.style.cssText = 'background:#7f1d1d;border:1px solid #ef4444;border-radius:10px;padding:14px 20px;margin-bottom:20px;color:#fca5a5;font-size:0.9rem;line-height:1.6;';
+  warn.innerHTML = '<strong style="color:#f87171">⚠️ Not served via HTTP!</strong> Links will show <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px">http://localhost/filedownloads/...</code> but the Service Worker cannot intercept <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px">file://</code> requests. '
+    + 'To make all links work, serve this file via HTTP:<br><code style="background:rgba(0,0,0,0.4);padding:4px 10px;border-radius:4px;display:inline-block;margin-top:6px">cd /Users/svasu/Repos/personal/devtools &amp;&amp; python3 -m http.server 80</code><br>'
+    + 'Then open: <code style="background:rgba(0,0,0,0.4);padding:4px 10px;border-radius:4px;display:inline-block;margin-top:4px">http://localhost/file_download_host.html</code>';
+  document.querySelector('.table-wrapper').before(warn);
+}
 
 // ─────────────────────────────────────────────
 // Utility: convert Uint8Array → base64 string
@@ -696,14 +705,23 @@ function makeMP4() {
 }
 
 // ─────────────────────────────────────────────
-// Helper: base64 → Blob URL (forces download for ALL mime types)
+// Helper: base64 → Blob, trigger download programmatically
+// Used when the real URL is not actually served (embedded-only mode).
+// The <a> href is the real hosted URL; onclick intercepts locally.
 // ─────────────────────────────────────────────
-function makeBlobUrl(b64, mime, filename) {
+function downloadFromBase64(b64, mime, filename) {
   const byteChars = atob(b64);
   const bytes = new Uint8Array(byteChars.length);
   for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
   const blob = new Blob([bytes], { type: mime });
-  return URL.createObjectURL(blob);
+  const blobUrl = URL.createObjectURL(blob);
+  const tmp = document.createElement('a');
+  tmp.href = blobUrl;
+  tmp.download = filename;
+  document.body.appendChild(tmp);
+  tmp.click();
+  document.body.removeChild(tmp);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 }
 
 // ─────────────────────────────────────────────
@@ -730,12 +748,13 @@ const FILE_DEFS = [
 const tbody   = document.getElementById('download-table-body');
 const sgrid   = document.getElementById('selector-grid');
 const lgrid   = document.getElementById('links-grid');
+const FILE_B64 = {}; // cache generated base64 so SW can reuse without re-generating
 
 FILE_DEFS.forEach((f, idx) => {
-  const b64      = f.makeFn();
-  const dataUri  = `data:${f.mime};base64,${b64}`;
-  const blobUrl  = makeBlobUrl(b64, f.mime, f.filename);
-  const prettyUrl = `${BASE_URL}/${f.filename}`;
+  const b64       = f.makeFn();
+  FILE_B64[f.key] = b64;
+  const dataUri   = `data:${f.mime};base64,${b64}`;
+  const prettyUrl = `${BASE_URL}/filedownloads/${f.filename}`;
 
   // ── Table row ──────────────────────────────
   const tr = document.createElement('tr');
@@ -756,19 +775,18 @@ FILE_DEFS.forEach((f, idx) => {
       <a
         id="direct-${f.key}"
         class="direct-link"
-        href="${blobUrl}"
+        href="${prettyUrl}"
         download="${f.filename}"
-        title="${prettyUrl}"
-        data-pretty-url="${prettyUrl}"
         data-filename="${f.filename}"
         data-filetype="${f.key}"
+        title="${prettyUrl}"
       ><span class="link-icon">&#128279;</span>${f.filename}</a>
     </td>
     <td class="td-btn">
       <a
         id="download-${f.key}"
         class="download-btn"
-        href="${dataUri}"
+        href="${prettyUrl}"
         download="${f.filename}"
         role="button"
         aria-label="Download ${f.label}"
@@ -816,14 +834,57 @@ FILE_DEFS.forEach((f, idx) => {
     <span class="lr-badge">${f.key.toUpperCase()}</span>
     <a class="lr-link"
        id="lr-link-${f.key}"
-       href="${blobUrl}"
+       href="${prettyUrl}"
        download="${f.filename}"
-       title="Click to download ${f.filename}"
-       data-pretty-url="${prettyUrl}"
+       title="${prettyUrl}"
     >${prettyUrl}</a>
     <button class="lr-copy" onclick="copyUrl('${prettyUrl}', this)">Copy</button>`;
   lgrid.appendChild(row);
 });
+
+// ─────────────────────────────────────────────
+// SERVICE WORKER — intercepts /filedownloads/* and serves embedded files
+// Registered as a blob so no separate SW file is needed.
+// ─────────────────────────────────────────────
+(function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+
+  // Build a lookup: filename → { mime, b64 }
+  const registry = {};
+  FILE_DEFS.forEach(f => {
+    registry[f.filename] = { mime: f.mime, b64: FILE_B64[f.key] };
+  });
+
+  const swCode = `
+const REGISTRY = ${JSON.stringify(registry)};
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (!url.pathname.startsWith('/filedownloads/')) return;
+  const filename = url.pathname.split('/').pop();
+  const entry = REGISTRY[filename];
+  if (!entry) return;
+  event.respondWith((async () => {
+    const byteChars = atob(entry.b64);
+    const bytes = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+    return new Response(bytes, {
+      status: 200,
+      headers: {
+        'Content-Type': entry.mime,
+        'Content-Disposition': 'attachment; filename="' + filename + '"',
+        'Content-Length': bytes.length
+      }
+    });
+  })());
+});
+`;
+
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl, { scope: '/filedownloads/' })
+    .then(() => console.log('[SW] Registered for /filedownloads/'))
+    .catch(e => console.warn('[SW] Registration failed:', e));
+})();
 
 // ─────────────────────────────────────────────
 // Copy URL to clipboard
@@ -840,385 +901,5 @@ function copyUrl(url, btn) {
   });
 }
 </script>
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-// Utility: encode UTF-8 string → base64
-function strToBase64(str) {
-  return btoa(unescape(encodeURIComponent(str)));
-}
-
-// ─────────────────────────────────────────────
-// CRC-32 table for ZIP / PNG
-// ─────────────────────────────────────────────
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-    t[n] = c;
-  }
-  return t;
-})();
-
-function crc32(buf, offset = 0, length = buf.length) {
-  let crc = 0xFFFFFFFF;
-  for (let i = offset; i < offset + length; i++) crc = CRC_TABLE[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
-  return (crc ^ 0xFFFFFFFF) >>> 0;
-}
-
-// ─────────────────────────────────────────────
-// Write helpers
-// ─────────────────────────────────────────────
-function writeUint16LE(arr, offset, val) {
-  arr[offset]   =  val & 0xFF;
-  arr[offset+1] = (val >>> 8) & 0xFF;
-}
-function writeUint32LE(arr, offset, val) {
-  arr[offset]   =  val & 0xFF;
-  arr[offset+1] = (val >>> 8)  & 0xFF;
-  arr[offset+2] = (val >>> 16) & 0xFF;
-  arr[offset+3] = (val >>> 24) & 0xFF;
-}
-function writeUint32BE(arr, offset, val) {
-  arr[offset]   = (val >>> 24) & 0xFF;
-  arr[offset+1] = (val >>> 16) & 0xFF;
-  arr[offset+2] = (val >>> 8)  & 0xFF;
-  arr[offset+3] =  val & 0xFF;
-}
-
-// ─────────────────────────────────────────────
-// FILE GENERATORS
-// ─────────────────────────────────────────────
-
-function makeTXT() {
-  const content = `This is a sample text file.
-Line 2: Hello, World!
-Line 3: File Download Control Test.
-Line 4: Sample data for testing purposes.
-Line 5: Created for QA automation testing.
-Line 6: Format: Plain Text (.txt)
-Line 7: Date: 2026-04-19
-Line 8: End of file.`;
-  return strToBase64(content);
-}
-
-function makeCSV() {
-  const content = `id,name,age,email,country,department,salary
-1,Alice Johnson,30,alice@example.com,USA,Engineering,85000
-2,Bob Smith,25,bob@example.com,UK,Marketing,65000
-3,Carol White,35,carol@example.com,Canada,Finance,90000
-4,Dave Brown,28,dave@example.com,Australia,HR,70000
-5,Eve Davis,22,eve@example.com,Germany,Engineering,75000
-6,Frank Miller,40,frank@example.com,France,Sales,80000
-7,Grace Lee,33,grace@example.com,Japan,Engineering,95000
-8,Hank Wilson,27,hank@example.com,Brazil,Marketing,60000
-9,Iris Moore,31,iris@example.com,India,Finance,72000
-10,Jack Taylor,45,jack@example.com,Mexico,HR,68000`;
-  return strToBase64(content);
-}
-
-function makeJSON() {
-  const obj = {
-    title: "Sample JSON File",
-    description: "File download control test",
-    version: "1.0",
-    created: "2026-04-19",
-    items: [
-      { id: 1, name: "Item One",   category: "A", value: 100, active: true  },
-      { id: 2, name: "Item Two",   category: "B", value: 200, active: false },
-      { id: 3, name: "Item Three", category: "A", value: 300, active: true  },
-      { id: 4, name: "Item Four",  category: "C", value: 400, active: true  }
-    ],
-    meta: { total: 4, page: 1, pageSize: 10 }
-  };
-  return strToBase64(JSON.stringify(obj, null, 2));
-}
-
-function makeXML() {
-  const content = `<?xml version="1.0" encoding="UTF-8"?>
-<catalog>
-  <book id="1">
-    <title>Sample Book One</title>
-    <author>John Doe</author>
-    <genre>Fiction</genre>
-    <price currency="USD">9.99</price>
-    <year>2024</year>
-  </book>
-  <book id="2">
-    <title>Sample Book Two</title>
-    <author>Jane Smith</author>
-    <genre>Non-Fiction</genre>
-    <price currency="USD">14.99</price>
-    <year>2025</year>
-  </book>
-  <book id="3">
-    <title>Sample Book Three</title>
-    <author>Bob Johnson</author>
-    <genre>Science</genre>
-    <price currency="USD">19.99</price>
-    <year>2026</year>
-  </book>
-</catalog>`;
-  return strToBase64(content);
-}
-
-function makeDOC() {
-  const rtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033
-{\\fonttbl{\\f0\\froman\\fcharset0 Times New Roman;}{\\f1\\fswiss\\fcharset0 Arial;}}
-{\\colortbl;\\red0\\green0\\blue0;\\red0\\green70\\blue127;}
-\\viewkind4\\uc1\\pard\\f1\\fs32\\b\\cf2 File Download Control Test - DOC Sample\\cf1\\b0\\par
-\\fs24\\par
-\\b\\fs26 Section 1: Introduction\\b0\\fs24\\par
-This is a sample DOC file created for testing file download controls in automated test frameworks.\\par
-\\par
-\\b\\fs26 Section 2: Sample Data\\b0\\fs24\\par
-Name: John Doe\\par
-Age: 35\\par
-Email: john.doe@example.com\\par
-Department: Engineering\\par
-Status: Active\\par
-\\par
-\\b\\fs26 Section 3: Summary\\b0\\fs24\\par
-This document was auto-generated for QA testing purposes.\\par
-Date Created: 2026-04-19\\par
-Format: RTF-based DOC\\par
-}}`;
-  return strToBase64(rtf);
-}
-
-function makeXLS() {
-  const xml = `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- <Worksheet ss:Name="SampleData">
-  <Table>
-   <Row>
-    <Cell><Data ss:Type="String">ID</Data></Cell>
-    <Cell><Data ss:Type="String">Name</Data></Cell>
-    <Cell><Data ss:Type="String">Age</Data></Cell>
-    <Cell><Data ss:Type="String">Department</Data></Cell>
-    <Cell><Data ss:Type="String">Salary</Data></Cell>
-   </Row>
-   <Row><Cell><Data ss:Type="Number">1</Data></Cell><Cell><Data ss:Type="String">Alice Johnson</Data></Cell><Cell><Data ss:Type="Number">30</Data></Cell><Cell><Data ss:Type="String">Engineering</Data></Cell><Cell><Data ss:Type="Number">85000</Data></Cell></Row>
-   <Row><Cell><Data ss:Type="Number">2</Data></Cell><Cell><Data ss:Type="String">Bob Smith</Data></Cell><Cell><Data ss:Type="Number">25</Data></Cell><Cell><Data ss:Type="String">Marketing</Data></Cell><Cell><Data ss:Type="Number">65000</Data></Cell></Row>
-   <Row><Cell><Data ss:Type="Number">3</Data></Cell><Cell><Data ss:Type="String">Carol White</Data></Cell><Cell><Data ss:Type="Number">35</Data></Cell><Cell><Data ss:Type="String">Finance</Data></Cell><Cell><Data ss:Type="Number">90000</Data></Cell></Row>
-   <Row><Cell><Data ss:Type="Number">4</Data></Cell><Cell><Data ss:Type="String">Dave Brown</Data></Cell><Cell><Data ss:Type="Number">28</Data></Cell><Cell><Data ss:Type="String">HR</Data></Cell><Cell><Data ss:Type="Number">70000</Data></Cell></Row>
-   <Row><Cell><Data ss:Type="Number">5</Data></Cell><Cell><Data ss:Type="String">Eve Davis</Data></Cell><Cell><Data ss:Type="Number">42</Data></Cell><Cell><Data ss:Type="String">Engineering</Data></Cell><Cell><Data ss:Type="Number">95000</Data></Cell></Row>
-  </Table>
- </Worksheet>
-</Workbook>`;
-  return strToBase64(xml);
-}
-
-function makePPT() {
-  const rtf = `{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033
-{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}}
-{\\colortbl;\\red0\\green0\\blue0;\\red0\\green70\\blue127;}
-\\viewkind4\\uc1
-\\pard\\f0\\fs40\\b\\cf2 Slide 1: File Download Control Test\\cf1\\b0\\par
-\\fs24\\par
-This is a sample PPT file created for testing file download controls.\\par
-\\par
-\\fs36\\b\\cf2 Slide 2: Key Features\\cf1\\b0\\fs24\\par
-- Multiple file format support\\par
-- Embedded files in HTML\\par
-- Download buttons with XPath and CSS selectors\\par
-\\par
-\\fs36\\b\\cf2 Slide 3: Test Data\\cf1\\b0\\fs24\\par
-Project: File Download Control Host\\par
-Created: 2026-04-19\\par
-Author: QA Automation Team\\par
-Status: Ready for Testing\\par
-}}`;
-  return strToBase64(rtf);
-}
-
-// PNG — draw a 200x200 gradient on a canvas
-function makePNG() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 200; canvas.height = 200;
-  const ctx = canvas.getContext('2d');
-  const grad = ctx.createLinearGradient(0, 0, 200, 200);
-  grad.addColorStop(0,   '#7c3aed');
-  grad.addColorStop(0.5, '#4f46e5');
-  grad.addColorStop(1,   '#06b6d4');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 200, 200);
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.font = 'bold 18px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('Sample PNG', 100, 105);
-  // return just the base64 part (strip data:image/png;base64,)
-  return canvas.toDataURL('image/png').split(',')[1];
-}
-
-// JPG — draw a 200x200 image on canvas
-function makeJPG() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 200; canvas.height = 200;
-  const ctx = canvas.getContext('2d');
-  const grad = ctx.createLinearGradient(0, 0, 200, 200);
-  grad.addColorStop(0,   '#f59e0b');
-  grad.addColorStop(0.5, '#ef4444');
-  grad.addColorStop(1,   '#ec4899');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 200, 200);
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.font = 'bold 18px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('Sample JPG', 100, 105);
-  return canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
-}
-
-// ZIP — minimal ZIP binary with two text files
-function makeZIP() {
-  function encodeStr(s) {
-    return new TextEncoder().encode(s);
-  }
-
-  const files = [
-    { name: 'readme.txt',      data: encodeStr('This is a sample ZIP archive.\nCreated for file download control testing.\nDate: 2026-04-19\n') },
-    { name: 'data/sample.csv', data: encodeStr('name,value,category\nfoo,1,A\nbar,2,B\nbaz,3,A\nqux,4,C\n') },
-    { name: 'data/notes.txt',  data: encodeStr('Notes:\n- This ZIP contains sample data files\n- For testing purposes only\n') },
-  ];
-
-  const localHeaders = [];
-  let offset = 0;
-
-  const localParts = files.map(f => {
-    const nameBytes = encodeStr(f.name);
-    const dataCRC   = crc32(f.data);
-    const header    = new Uint8Array(30 + nameBytes.length);
-    // Local file header signature
-    header[0]=0x50; header[1]=0x4B; header[2]=0x03; header[3]=0x04;
-    writeUint16LE(header,  4, 20);         // version needed
-    writeUint16LE(header,  6, 0);          // flags
-    writeUint16LE(header,  8, 0);          // compression: stored
-    writeUint16LE(header, 10, 0);          // mod time
-    writeUint16LE(header, 12, 0);          // mod date
-    writeUint32LE(header, 14, dataCRC);    // crc-32
-    writeUint32LE(header, 18, f.data.length); // compressed size
-    writeUint32LE(header, 22, f.data.length); // uncompressed size
-    writeUint16LE(header, 26, nameBytes.length);
-    writeUint16LE(header, 28, 0);          // extra length
-    header.set(nameBytes, 30);
-
-    localHeaders.push({ nameBytes, dataCRC, size: f.data.length, offset });
-    offset += header.length + f.data.length;
-    return [header, f.data];
-  });
-
-  // Central directory
-  const centralParts = files.map((f, i) => {
-    const { nameBytes, dataCRC, size, offset: loff } = localHeaders[i];
-    const cd = new Uint8Array(46 + nameBytes.length);
-    cd[0]=0x50; cd[1]=0x4B; cd[2]=0x01; cd[3]=0x02;
-    writeUint16LE(cd,  4, 20);  // version made by
-    writeUint16LE(cd,  6, 20);  // version needed
-    writeUint16LE(cd,  8, 0);   // flags
-    writeUint16LE(cd, 10, 0);   // compression
-    writeUint16LE(cd, 12, 0);   // mod time
-    writeUint16LE(cd, 14, 0);   // mod date
-    writeUint32LE(cd, 16, dataCRC);
-    writeUint32LE(cd, 20, size);
-    writeUint32LE(cd, 24, size);
-    writeUint16LE(cd, 28, nameBytes.length);
-    writeUint16LE(cd, 30, 0); writeUint16LE(cd, 32, 0); writeUint16LE(cd, 34, 0);
-    writeUint16LE(cd, 36, 0); writeUint32LE(cd, 38, 0); writeUint32LE(cd, 42, loff);
-    cd.set(nameBytes, 46);
-    return cd;
-  });
-
-  const cdSize   = centralParts.reduce((s, p) => s + p.length, 0);
-  const cdOffset = offset;
-
-  const eocd = new Uint8Array(22);
-  eocd[0]=0x50; eocd[1]=0x4B; eocd[2]=0x05; eocd[3]=0x06;
-  writeUint16LE(eocd,  4, 0);
-  writeUint16LE(eocd,  6, 0);
-  writeUint16LE(eocd,  8, files.length);
-  writeUint16LE(eocd, 10, files.length);
-  writeUint32LE(eocd, 12, cdSize);
-  writeUint32LE(eocd, 16, cdOffset);
-  writeUint16LE(eocd, 20, 0);
-
-  // Concatenate all parts
-  const allParts = [...localParts.flat(), ...centralParts, eocd];
-  const totalLen = allParts.reduce((s, p) => s + p.length, 0);
-  const result   = new Uint8Array(totalLen);
-  let pos = 0;
-  for (const p of allParts) { result.set(p, pos); pos += p.length; }
-  return uint8ToBase64(result);
-}
-
-// MP3 — ID3v2 header + 5 silent MPEG1 Layer3 frames
-function makeMP3() {
-  // ID3v2.3 header (10 bytes, size=0)
-  const id3 = [0x49,0x44,0x33,0x03,0x00,0x00,0x00,0x00,0x00,0x00];
-  // Silent MPEG1 Layer3 128kbps 44100Hz stereo frame header + 413 zero bytes
-  const frameHeader = [0xFF,0xFB,0x90,0x00];
-  const frameSize = 417; // 4 header + 413 data
-  const numFrames = 5;
-  const total = 10 + frameSize * numFrames;
-  const buf = new Uint8Array(total);
-  buf.set(id3, 0);
-  for (let i = 0; i < numFrames; i++) {
-    buf.set(frameHeader, 10 + i * frameSize);
-    // rest is zero = silent
-  }
-  return uint8ToBase64(buf);
-}
-
-// MP4 — minimal valid ftyp + mdat + moov container
-function makeMP4() {
-  function box(nameStr, data) {
-    const name = nameStr.split('').map(c => c.charCodeAt(0));
-    const size = 8 + (data ? data.length : 0);
-    const buf  = new Uint8Array(size);
-    writeUint32BE(buf, 0, size);
-    buf.set(name, 4);
-    if (data) buf.set(data, 8);
-    return buf;
-  }
-
-  // ftyp
-  const ftypData = new Uint8Array([
-    0x6D,0x70,0x34,0x32,  // major brand: mp42
-    0x00,0x00,0x00,0x00,  // minor version
-    0x6D,0x70,0x34,0x32,  // compat: mp42
-    0x6D,0x70,0x34,0x31,  // compat: mp41
-    0x69,0x73,0x6F,0x6D   // compat: isom
-  ]);
-  const ftyp = box('ftyp', ftypData);
-
-  // mdat
-  const mdat = box('mdat', new Uint8Array(32));
-
-  // mvhd (minimal, version 0 = 108 bytes total including box header)
-  const mvhdData = new Uint8Array(100);
-  // version=0, flags=0, creation=0, modification=0
-  writeUint32BE(mvhdData, 8,  1000); // timescale
-  writeUint32BE(mvhdData, 12, 0);    // duration
-  mvhdData[16] = 0x00; mvhdData[17] = 0x01; // rate hi = 1.0
-  mvhdData[20] = 0x01; // volume hi = 1.0
-  // matrix (identity) at offset 36
-  mvhdData[36] = 0x00; mvhdData[37] = 0x01; // 0x00010000
-  mvhdData[52] = 0x00; mvhdData[53] = 0x01; // 0x00010000
-  mvhdData[68] = 0x40;                       // 0x40000000
-  const mvhd = box('mvhd', mvhdData);
-  const moov = box('moov', mvhd);
-
-  const total = ftyp.length + mdat.length + moov.length;
-  const result = new Uint8Array(total);
-  result.set(ftyp, 0);
-  result.set(mdat, ftyp.length);
-  result.set(moov, ftyp.length + mdat.length);
-  return uint8ToBase64(result);
-}
-
-// (end of file)
+</body>
+</html>
