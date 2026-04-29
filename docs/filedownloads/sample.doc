@@ -1,0 +1,20 @@
+{\rtf1\ansi\ansicpg1252\deff0\deflang1033
+{\fonttbl{\f0\froman\fcharset0 Times New Roman;}{\f1\fswiss\fcharset0 Arial;}}
+{\colortbl;\red0\green0\blue0;\red0\green70\blue127;}
+\viewkind4\uc1\pard\f1\fs32\b\cf2 File Download Control Test - DOC Sample\cf1\b0\par
+\fs24\par
+\b\fs26 Section 1: Introduction\b0\fs24\par
+This is a sample DOC file created for testing file download controls in automated test frameworks.\par
+\par
+\b\fs26 Section 2: Sample Data\b0\fs24\par
+Name: John Doe\par
+Age: 35\par
+Email: john.doe@example.com\par
+Department: Engineering\par
+Status: Active\par
+\par
+\b\fs26 Section 3: Summary\b0\fs24\par
+This document was auto-generated for QA testing purposes.\par
+Date Created: 2026-04-19\par
+Format: RTF-based DOC\par
+}}
