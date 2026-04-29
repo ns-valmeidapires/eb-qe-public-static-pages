@@ -748,12 +748,29 @@ const lgrid   = document.getElementById('links-grid');
 const FILE_DATA = {};
 FILE_DEFS.forEach(f => { FILE_DATA[f.filename] = { b64: f.makeFn(), mime: f.mime }; });
 
+// Trigger a blob download — used by onclick on pretty-URL links so the
+// browser never actually navigates to the URL (which isn't a real file).
+function triggerBlobDownload(filename, event) {
+  if (event) event.preventDefault();
+  const { b64, mime } = FILE_DATA[filename];
+  const byteChars = atob(b64);
+  const bytes = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([bytes], { type: mime });
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+}
+
 FILE_DEFS.forEach((f, idx) => {
   const b64       = FILE_DATA[f.filename].b64;
   const dataUri   = `data:${f.mime};base64,${b64}`;
   const prettyUrl = `${BASE_URL}${PATH_PREFIX}/filedownloads/${f.filename}`;
-  // Direct links use data URIs (work everywhere); SW will upgrade them to real URLs after ready
-  const directHref = dataUri;
 
   // ── Table row ──────────────────────────────
   const tr = document.createElement('tr');
@@ -774,19 +791,19 @@ FILE_DEFS.forEach((f, idx) => {
       <a
         id="direct-${f.key}"
         class="direct-link"
-        href="${directHref}"
-        download="${f.filename}"
+        href="${prettyUrl}"
+        onclick="triggerBlobDownload('${f.filename}', event)"
         data-filename="${f.filename}"
         data-filetype="${f.key}"
         title="Download ${f.filename}"
-      ><span class="link-icon">&#128279;</span>${f.filename}</a>
+      ><span class="link-icon">&#128279;</span>${prettyUrl}</a>
     </td>
     <td class="td-btn">
       <a
         id="download-${f.key}"
         class="download-btn"
-        href="${dataUri}"
-        download="${f.filename}"
+        href="${prettyUrl}"
+        onclick="triggerBlobDownload('${f.filename}', event)"
         role="button"
         aria-label="Download ${f.label}"
         data-filename="${f.filename}"
@@ -833,8 +850,8 @@ FILE_DEFS.forEach((f, idx) => {
     <span class="lr-badge">${f.key.toUpperCase()}</span>
     <a class="lr-link"
        id="lr-link-${f.key}"
-       href="${directHref}"
-       download="${f.filename}"
+       href="${prettyUrl}"
+       onclick="triggerBlobDownload('${f.filename}', event)"
        title="Download ${f.filename}"
     >${prettyUrl}</a>
     <button class="lr-copy" onclick="copyUrl('${prettyUrl}', this)">Copy</button>`;
@@ -856,53 +873,6 @@ function copyUrl(url, btn) {
   });
 }
 
-// ─────────────────────────────────────────────
-// Register sw.js and seed the Cache with generated file blobs.
-// After SW is active, upgrade direct-link hrefs to pretty URLs.
-// ─────────────────────────────────────────────
-if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
-  (async () => {
-    try {
-      const swPath = (PATH_PREFIX || '') + '/sw.js';
-      const reg = await navigator.serviceWorker.register(swPath, { scope: (PATH_PREFIX || '') + '/' });
-      await navigator.serviceWorker.ready;
-
-      // Seed Cache API so SW can serve requests without re-generating
-      const CACHE_NAME = 'filedownloads-v1';
-      const cache = await caches.open(CACHE_NAME);
-      for (const f of FILE_DEFS) {
-        const prettyUrl = `${BASE_URL}${PATH_PREFIX}/filedownloads/${f.filename}`;
-        const existing  = await cache.match(prettyUrl);
-        if (!existing) {
-          const { b64, mime } = FILE_DATA[f.filename];
-          const byteChars = atob(b64);
-          const bytes = new Uint8Array(byteChars.length);
-          for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-          const blob = new Blob([bytes], { type: mime });
-          const response = new Response(blob, {
-            status: 200,
-            headers: {
-              'Content-Type': mime,
-              'Content-Disposition': `attachment; filename="${f.filename}"`,
-            }
-          });
-          await cache.put(prettyUrl, response);
-        }
-      }
-
-      // Upgrade direct-link and link-row hrefs to real SW-backed URLs
-      FILE_DEFS.forEach(f => {
-        const prettyUrl = `${BASE_URL}${PATH_PREFIX}/filedownloads/${f.filename}`;
-        const elDirect = document.getElementById(`direct-${f.key}`);
-        const elLrLink = document.getElementById(`lr-link-${f.key}`);
-        if (elDirect) { elDirect.href = prettyUrl; elDirect.removeAttribute('download'); }
-        if (elLrLink) { elLrLink.href = prettyUrl; elLrLink.removeAttribute('download'); }
-      });
-    } catch (err) {
-      console.warn('SW setup skipped:', err.message);
-    }
-  })();
-}
 </script>
 </body>
 </html>
