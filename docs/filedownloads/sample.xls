@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Worksheet ss:Name="SampleData">
+  <Table>
+   <Row>
+    <Cell><Data ss:Type="String">ID</Data></Cell>
+    <Cell><Data ss:Type="String">Name</Data></Cell>
+    <Cell><Data ss:Type="String">Age</Data></Cell>
+    <Cell><Data ss:Type="String">Department</Data></Cell>
+    <Cell><Data ss:Type="String">Salary</Data></Cell>
+   </Row>
+   <Row><Cell><Data ss:Type="Number">1</Data></Cell><Cell><Data ss:Type="String">Alice Johnson</Data></Cell><Cell><Data ss:Type="Number">30</Data></Cell><Cell><Data ss:Type="String">Engineering</Data></Cell><Cell><Data ss:Type="Number">85000</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="Number">2</Data></Cell><Cell><Data ss:Type="String">Bob Smith</Data></Cell><Cell><Data ss:Type="Number">25</Data></Cell><Cell><Data ss:Type="String">Marketing</Data></Cell><Cell><Data ss:Type="Number">65000</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="Number">3</Data></Cell><Cell><Data ss:Type="String">Carol White</Data></Cell><Cell><Data ss:Type="Number">35</Data></Cell><Cell><Data ss:Type="String">Finance</Data></Cell><Cell><Data ss:Type="Number">90000</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="Number">4</Data></Cell><Cell><Data ss:Type="String">Dave Brown</Data></Cell><Cell><Data ss:Type="Number">28</Data></Cell><Cell><Data ss:Type="String">HR</Data></Cell><Cell><Data ss:Type="Number">70000</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="Number">5</Data></Cell><Cell><Data ss:Type="String">Eve Davis</Data></Cell><Cell><Data ss:Type="Number">42</Data></Cell><Cell><Data ss:Type="String">Engineering</Data></Cell><Cell><Data ss:Type="Number">95000</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+</Workbook>

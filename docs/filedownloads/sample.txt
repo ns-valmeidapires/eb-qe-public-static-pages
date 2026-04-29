@@ -1,0 +1,8 @@
+This is a sample text file.
+Line 2: Hello, World!
+Line 3: File Download Control Test.
+Line 4: Sample data for testing purposes.
+Line 5: Created for QA automation testing.
+Line 6: Format: Plain Text (.txt)
+Line 7: Date: 2026-04-19
+Line 8: End of file.

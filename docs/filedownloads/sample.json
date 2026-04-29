@@ -1,0 +1,41 @@
+{
+  "title": "Sample JSON File",
+  "description": "File download control test",
+  "version": "1.0",
+  "created": "2026-04-19",
+  "items": [
+    {
+      "id": 1,
+      "name": "Item One",
+      "category": "A",
+      "value": 100,
+      "active": true
+    },
+    {
+      "id": 2,
+      "name": "Item Two",
+      "category": "B",
+      "value": 200,
+      "active": false
+    },
+    {
+      "id": 3,
+      "name": "Item Three",
+      "category": "A",
+      "value": 300,
+      "active": true
+    },
+    {
+      "id": 4,
+      "name": "Item Four",
+      "category": "C",
+      "value": 400,
+      "active": true
+    }
+  ],
+  "meta": {
+    "total": 4,
+    "page": 1,
+    "pageSize": 10
+  }
+}
