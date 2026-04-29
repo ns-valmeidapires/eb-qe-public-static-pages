@@ -1,0 +1,19 @@
+{\rtf1\ansi\ansicpg1252\deff0\deflang1033
+{\fonttbl{\f0\fswiss\fcharset0 Arial;}}
+{\colortbl;\red0\green0\blue0;\red0\green70\blue127;}
+\viewkind4\uc1
+\pard\f0\fs40\b\cf2 Slide 1: File Download Control Test\cf1\b0\par
+\fs24\par
+This is a sample PPT file created for testing file download controls.\par
+\par
+\fs36\b\cf2 Slide 2: Key Features\cf1\b0\fs24\par
+- Multiple file format support\par
+- Embedded files in HTML\par
+- Download buttons with XPath and CSS selectors\par
+\par
+\fs36\b\cf2 Slide 3: Test Data\cf1\b0\fs24\par
+Project: File Download Control Host\par
+Created: 2026-04-19\par
+Author: QA Automation Team\par
+Status: Ready for Testing\par
+}}
